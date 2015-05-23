@@ -2,6 +2,7 @@
 
 import sys, os, subprocess
 import logging
+import ConfigParser
 from PyQt4 import QtCore, QtGui
 
 FIELDS = ['Scale:', 'Width:', 'Height:']
@@ -14,8 +15,10 @@ CHOOSEMOD = "Choose modified photos folder"
 RUNDIR = os.path.expanduser('~/.many')
 
 class MainWindow(QtGui.QMainWindow):
-    def __init__(self):
+    def __init__(self, cfg):
         super(MainWindow, self).__init__()
+
+        self.cfg = cfg
 
         self.setWindowTitle("Many")
         self.srcpath, self.dstpath = None, None
@@ -139,10 +142,12 @@ class MainWindow(QtGui.QMainWindow):
                     height = str(self.combos[2].currentText())
 
                     if scale:
-                        args = ['gm', 'convert', '-geometry', scale, inpath,
+                        args = [self.cfg.get('many', 'gm'),
+                                'convert', '-geometry', scale, inpath,
                                 '%s/%s' % (outdir, filename)]
                     elif width or height:
-                        args = ['gm', 'convert', '-geometry',
+                        args = [self.cfg.get('many', 'gm'),
+                                'convert', '-geometry',
                                 '%sx%s' % (width, height), inpath,
                                 '%s/%s' % (outdir, filename)]
 
@@ -158,19 +163,26 @@ def excepthook(type, value, tback):
     sys.__excepthook__(type, value, tback)
 
 if __name__ == '__main__':
+    # Create runtime directory
     try:
         os.mkdir(RUNDIR)
     except OSError:
         pass
+
+    # Load config
+    cfg = ConfigParser.RawConfigParser()
+    cfg.read(RUNDIR + '/many.cfg')
+
+    # Set up logging
     logging.basicConfig(filename=RUNDIR + '/log',
                         format='%(asctime)s %(levelname)s %(message)s',
                         level=logging.INFO)
     logging.info("Starting run")
-
     sys.excepthook = excepthook
 
+    # Run application
     app = QtGui.QApplication(sys.argv)
-    win = MainWindow()
+    win = MainWindow(cfg)
     win.show()
 
     excode = app.exec_()
