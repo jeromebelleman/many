@@ -107,13 +107,20 @@ class MainWindow(QtGui.QMainWindow):
                 which is empty.
                 ''' % self.dstpath)
         else:
+            logging.info("Scouting for files")
             self.bar.setMaximum(self.walk(True))
+
+            logging.info("Starting processing")
             self.walk(False)
+            logging.info("Ending processing")
 
     def walk(self, scout):
         filec = 0
-        logging.info("Starting processing")
         for root, _, files in os.walk(self.srcpath):
+            # Don't use output files as input files
+            if self.dstpath == root:
+                continue
+
             for filename in files:
                 filec += 1
                 if not scout:
@@ -122,8 +129,8 @@ class MainWindow(QtGui.QMainWindow):
                         (self.dstpath,
                          os.path.dirname(inpath[len(self.srcpath) + 1:]))
                     try:
-                        logging.info("Making directory %s", outdir)
                         os.makedirs(outdir)
+                        logging.info("Made directory %s", outdir)
                     except OSError:
                         pass
 
@@ -143,7 +150,6 @@ class MainWindow(QtGui.QMainWindow):
                         self.bar.setValue(filec)
                         logging.info("Running %s", ' '.join(args))
                         subprocess.call(args)
-        logging.info("Ending processing")
 
         return filec
 
