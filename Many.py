@@ -1,6 +1,7 @@
 #! /usr/bin/env python
 
 import sys, os, subprocess
+import logging
 from PyQt4 import QtCore, QtGui
 
 FIELDS = ['Scale:', 'Width:', 'Height:']
@@ -10,6 +11,7 @@ VALUES = [PERCENTS, PIXELS, PIXELS]
 
 CHOOSEORIG = "Choose original photos folder"
 CHOOSEMOD = "Choose modified photos folder"
+RUNDIR = os.path.expanduser('~/.many')
 
 class MainWindow(QtGui.QMainWindow):
     def __init__(self):
@@ -82,6 +84,7 @@ class MainWindow(QtGui.QMainWindow):
 
     def setsrc(self):
         self.srcpath = str(QtGui.QFileDialog().getExistingDirectory())
+        logging.info("Set source path to %s", self.srcpath)
         if self.srcpath:
             self.src.setText('%s: %s' % (CHOOSEORIG, self.srcpath))
             if self.dstpath:
@@ -89,6 +92,7 @@ class MainWindow(QtGui.QMainWindow):
 
     def setdst(self):
         self.dstpath = str(QtGui.QFileDialog().getExistingDirectory())
+        logging.info("Set destination path to %s", self.dstpath)
         if self.dstpath:
             self.dst.setText('%s: %s' % (CHOOSEMOD, self.dstpath))
             if self.srcpath:
@@ -108,6 +112,7 @@ class MainWindow(QtGui.QMainWindow):
 
     def walk(self, scout):
         filec = 0
+        logging.info("Starting processing")
         for root, _, files in os.walk(self.srcpath):
             for filename in files:
                 filec += 1
@@ -117,6 +122,7 @@ class MainWindow(QtGui.QMainWindow):
                         (self.dstpath,
                          os.path.dirname(inpath[len(self.srcpath) + 1:]))
                     try:
+                        logging.info("Making directory %s", outdir)
                         os.makedirs(outdir)
                     except OSError:
                         pass
@@ -135,12 +141,32 @@ class MainWindow(QtGui.QMainWindow):
 
                     if args:
                         self.bar.setValue(filec)
+                        logging.info("Running %s", ' '.join(args))
                         subprocess.call(args)
+        logging.info("Ending processing")
 
         return filec
 
+def excepthook(type, value, tback):
+    logging.error('Line %d, %s: %s', tback.tb_lineno, type, value)
+    sys.__excepthook__(type, value, tback)
+
 if __name__ == '__main__':
+    try:
+        os.mkdir(RUNDIR)
+    except OSError:
+        pass
+    logging.basicConfig(filename=RUNDIR + '/log',
+                        format='%(asctime)s %(levelname)s %(message)s',
+                        level=logging.INFO)
+    logging.info("Starting run")
+
+    sys.excepthook = excepthook
+
     app = QtGui.QApplication(sys.argv)
     win = MainWindow()
     win.show()
-    sys.exit(app.exec_())
+
+    excode = app.exec_()
+    logging.info("Ending run")
+    sys.exit(excode)
